@@ -3,12 +3,14 @@ import * as THREE from "three";
 import { ARButton } from "three/addons/webxr/ARButton.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { IoReturnDownBack } from "react-icons/io5";
 import "./Vr.css";
 
 function Vr() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [modelUrl, setModelUrl] = useState("/models/motor/motor.gltf"); // current selected model
+  const [wireframe, setWireframe] = useState(false);
 
   useEffect(() => {
     let camera: THREE.PerspectiveCamera;
@@ -66,11 +68,18 @@ function Vr() {
         ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
       );
 
+      // 🔹 Environment map setup
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmremGenerator.fromScene(
+        new RoomEnvironment(),
+        0.04
+      ).texture;
+
       // Reticle
       const geometry = new THREE.RingGeometry(0.07, 0.09, 32).rotateX(
         -Math.PI / 2
       );
-      const material = new THREE.MeshBasicMaterial({ color: 0x2D76CB });
+      const material = new THREE.MeshBasicMaterial({ color: 0x2d76cb });
       reticle = new THREE.Mesh(geometry, material);
       reticle.matrixAutoUpdate = false;
       reticle.visible = false;
@@ -107,9 +116,23 @@ function Vr() {
       if (reticle?.visible) {
         if (!model) {
           loader.load(
-            modelUrl, // use current selected model
+            modelUrl,
             (gltf) => {
               model = gltf.scene;
+
+              model.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh) {
+                  (child as THREE.Mesh).material =
+                    new THREE.MeshStandardMaterial({
+                      color: 0xd3d3d3, // Light gray
+                      metalness: 1.0,
+                      roughness: 0.4, // keeps reflections visible
+                      wireframe: wireframe,
+                      envMapIntensity: 1.0, // use scene.environment
+                    });
+                }
+              });
+
               if (reticle) {
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.quaternion.setFromRotationMatrix(reticle.matrix);
@@ -171,7 +194,7 @@ function Vr() {
       hitTestSource = null;
       localSpace = null;
     };
-  }, [modelUrl]); // re-run effect if modelUrl changes
+  }, [wireframe, modelUrl]); // re-run effect if modelUrl changes
 
   return (
     <main className="container">
@@ -179,10 +202,25 @@ function Vr() {
         <button onClick={() => window.location.reload()}>
           <IoReturnDownBack size={28} />
         </button>
+
+        <div className="controls">
+          <label>
+            <input
+              type="checkbox"
+              checked={wireframe}
+              onChange={() => setWireframe(!wireframe)}
+            />
+            Wireframe Mode
+          </label>
+        </div>
+
         <select value={modelUrl} onChange={(e) => setModelUrl(e.target.value)}>
           <option value="/models/motor/motor.gltf">Motor</option>
           <option value="/models/caliper/caliper.gltf">Freio</option>
           <option value="/models/piston-valve/piston-valve.gltf">Pistão</option>
+          <option value="/models/virabrequim/virabrequim.gltf">
+            Virabrequim
+          </option>
         </select>
       </div>
 

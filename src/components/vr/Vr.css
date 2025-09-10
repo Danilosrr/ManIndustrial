@@ -66,3 +66,17 @@ main.container>.container {
     padding: 8px;
     cursor: pointer;
 }
+
+.controls {
+    margin-bottom: 12px;
+
+    label {
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+    }
+
+    input {
+        margin-right: 8px;
+    }
+}
